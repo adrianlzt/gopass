@@ -120,44 +120,6 @@ func (r *Store) initSub(ctx context.Context, alias, path string, keys []string) 
 	return s, nil
 }
 
-func (r *Store) initVaultMount(ctx context.Context, alias, url string, keys []string) (*leaf.Store, error) {
-	alias = CleanMountAlias(alias)
-	// Initialize Vault client
-	client, err := vault.NewClient(url, keys)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize Vault client for %q at %q: %w", alias, url, err)
-	}
-
-	// Create a new leaf store with the Vault client
-	s := leaf.NewWithVaultClient(ctx, alias, client)
-
-	if s.IsInitialized(ctx) {
-		return s, nil
-	}
-
-	debug.Log("[%s] Vault mount %s is not initialized", alias, url)
-
-	if len(keys) < 1 {
-		debug.Log("[%s] No keys available", alias)
-
-		return s, NotInitializedError{alias, url}
-	}
-
-	debug.Log("[%s] Trying to initialize Vault mount at %s for %+v", alias, url, keys)
-
-	if err := s.Init(ctx, url, keys...); err != nil {
-		return s, fmt.Errorf("failed to initialize Vault mount %q at %q: %w", alias, url, err)
-	}
-
-	out.Printf(ctx, "Vault mount %s initialized for:", url)
-
-	for _, r := range s.Recipients(ctx) {
-		out.Noticef(ctx, "  %s", r)
-	}
-
-	return s, nil
-}
-
 // RemoveMount removes and existing mount.
 func (r *Store) RemoveMount(ctx context.Context, alias string) error {
 	if _, found := r.mounts[alias]; !found {
@@ -283,7 +245,6 @@ func CleanMountAlias(alias string) string {
 		}
 		alias = strings.TrimSuffix(strings.TrimPrefix(alias, "/"), "/")
 		alias = strings.TrimSuffix(strings.TrimPrefix(alias, "\\"), "\\")
-	}
 
 	return alias
 }

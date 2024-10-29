@@ -11,6 +11,7 @@ import (
 	"github.com/gopasspw/gopass/internal/store/leaf"
 	"github.com/gopasspw/gopass/pkg/debug"
 	"github.com/gopasspw/gopass/pkg/fsutil"
+	"github.com/gopasspw/gopass/pkg/vault"
 )
 
 // IsInitialized checks on disk if .gpg-id was generated and thus returns true.
@@ -134,7 +135,7 @@ func (r *Store) initialize(ctx context.Context) error {
 func (r *Store) initVaultMount(ctx context.Context, alias, url string, keys []string) (*leaf.Store, error) {
 	alias = CleanMountAlias(alias)
 	// Initialize Vault client
-	client, err := vault.NewClient(url, keys)
+	client, err := vault.NewClient(url, keys[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Vault client for %q at %q: %w", alias, url, err)
 	}
