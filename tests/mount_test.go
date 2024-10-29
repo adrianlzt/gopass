@@ -226,3 +226,28 @@ gopass
 	require.NoError(t, err)
 	assert.Equal(t, strings.TrimSpace(list), out)
 }
+
+func TestVaultMount(t *testing.T) {
+	ts := newTester(t)
+	defer ts.teardown()
+
+	ts.initStore()
+
+	out, err := ts.run("init --store vault --path http://127.0.0.1:8200 --token myroot")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Initializing a new password store ...")
+	assert.Contains(t, out, "initialized")
+
+	out, err = ts.run("mounts")
+	require.NoError(t, err)
+	assert.Contains(t, out, "vault (http://127.0.0.1:8200)")
+
+	// Add a secret to the Vault mount
+	_, err = ts.runCmd([]string{ts.Binary, "insert", "vault/secret"}, []byte("vault-secret"))
+	require.NoError(t, err)
+
+	// Check that the secret is accessible
+	out, err = ts.run("show -f vault/secret")
+	require.NoError(t, err)
+	assert.Equal(t, "vault-secret", out)
+}

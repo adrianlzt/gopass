@@ -66,3 +66,13 @@ If you use gopass as a library, be sure to vendor it, and expect breaking change
 * [GPGTools](https://gpgtools.org/) for MacOS
 * [GitHub Help on GPG](https://help.github.com/articles/signing-commits-with-gpg/)
 * [Git - the simple guide](http://rogerdudler.github.io/git-guide/)
+
+## How can I add mounts for Vault servers?
+
+To add a mount pointing to a Vault server, use the following command:
+
+```
+gopass mounts add <mount/point> <vault-server-url>
+```
+
+This will make the necessary calls to get the KV engines available in Vault and present them as if they were secrets stored in gopass.
