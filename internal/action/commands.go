@@ -1026,6 +1026,29 @@ func (s *Action) GetCommands() []*cli.Command {
 				"This command displays version and build time information.",
 			Action: s.Version,
 		},
+		{
+			Name:  "vault",
+			Usage: "Vault backend commands",
+			Description: "Commands related to the Vault backend",
+			Subcommands: []*cli.Command{
+				{
+					Name:  "encrypt",
+					Usage: "Encrypt data using the Vault backend",
+					Action: func(c *cli.Context) error {
+						// Implement the action for the vault encrypt command
+						return nil
+					},
+				},
+				{
+					Name:  "decrypt",
+					Usage: "Decrypt data using the Vault backend",
+					Action: func(c *cli.Context) error {
+						// Implement the action for the vault decrypt command
+						return nil
+					},
+				},
+			},
+		},
 	}
 
 	// crypto and storage backends can add their own commands if they need to
