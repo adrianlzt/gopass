@@ -38,3 +38,17 @@ func TestInit(t *testing.T) {
 		assert.Contains(t, out, o)
 	}
 }
+
+func TestInitVault(t *testing.T) {
+	ts := newTester(t)
+	defer ts.teardown()
+
+	out, err := ts.run("init --store vault --path http://127.0.0.1:8200 --token myroot")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Initializing a new password store ...")
+	assert.Contains(t, out, "initialized")
+
+	out, err = ts.run("mounts")
+	require.NoError(t, err)
+	assert.Contains(t, out, "vault (http://127.0.0.1:8200)")
+}

@@ -12,6 +12,7 @@ import (
 	"github.com/gopasspw/gopass/internal/store/leaf"
 	"github.com/gopasspw/gopass/pkg/debug"
 	"github.com/gopasspw/gopass/pkg/fsutil"
+	"github.com/gopasspw/gopass/pkg/vault" // Import the Vault package
 )
 
 // AddMount adds a new mount.
@@ -49,6 +50,24 @@ func (r *Store) addMount(ctx context.Context, alias, path string, keys ...string
 
 	fullPath := fsutil.CleanPath(path)
 	debug.Log("addMount - Path: %s - Full: %s", path, fullPath)
+
+	// Check if the path is a Vault server URL
+	if strings.HasPrefix(fullPath, "http://") || strings.HasPrefix(fullPath, "https://") {
+		// Initialize Vault mount
+		s, err := r.initVaultMount(ctx, alias, fullPath, keys)
+		if err != nil {
+			return fmt.Errorf("failed to init Vault mount %q at %q: %w", alias, fullPath, err)
+		}
+
+		r.mounts[alias] = s
+		if err := r.cfg.SetMountPath(alias, path); err != nil {
+			return fmt.Errorf("failed to set mount path: %w", err)
+		}
+
+		debug.Log("Added Vault mount %s -> %s (%s)", alias, path, fullPath)
+
+		return nil
+	}
 
 	// initialize sub store
 	s, err := r.initSub(ctx, alias, fullPath, keys)
@@ -226,7 +245,6 @@ func CleanMountAlias(alias string) string {
 		}
 		alias = strings.TrimSuffix(strings.TrimPrefix(alias, "/"), "/")
 		alias = strings.TrimSuffix(strings.TrimPrefix(alias, "\\"), "\\")
-	}
 
 	return alias
 }

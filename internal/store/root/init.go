@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gopasspw/gopass/internal/backend"
 	"github.com/gopasspw/gopass/internal/out"
 	"github.com/gopasspw/gopass/internal/store/leaf"
 	"github.com/gopasspw/gopass/pkg/debug"
 	"github.com/gopasspw/gopass/pkg/fsutil"
+	"github.com/gopasspw/gopass/pkg/vault"
 )
 
 // IsInitialized checks on disk if .gpg-id was generated and thus returns true.
@@ -38,6 +40,28 @@ func (r *Store) Init(ctx context.Context, alias, path string, ids ...string) err
 
 	if !backend.HasStorageBackend(ctx) {
 		ctx = backend.WithStorageBackend(ctx, backend.GitFS)
+	}
+
+	// Check if the path is a Vault server URL
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		sub, err := r.initVaultMount(ctx, alias, path, ids)
+		if err != nil {
+			return fmt.Errorf("failed to initialize Vault mount: %w", err)
+		}
+
+		if !r.store.IsInitialized(ctx) && alias == "" {
+			r.store = sub
+		}
+
+		if alias != "" {
+			debug.Log("mounted %s at %s", alias, path)
+
+			return r.cfg.SetMountPath(alias, path)
+		}
+
+		debug.Log("initialized root at %s", path)
+
+		return r.cfg.SetPath(path)
 	}
 
 	sub, err := leaf.New(ctx, alias, path)
@@ -106,4 +130,42 @@ func (r *Store) initialize(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *Store) initVaultMount(ctx context.Context, alias, url string, keys []string) (*leaf.Store, error) {
+	alias = CleanMountAlias(alias)
+	// Initialize Vault client
+	client, err := vault.NewClient(url, keys[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize Vault client for %q at %q: %w", alias, url, err)
+	}
+
+	// Create a new leaf store with the Vault client
+	s := leaf.NewWithVaultClient(ctx, alias, client)
+
+	if s.IsInitialized(ctx) {
+		return s, nil
+	}
+
+	debug.Log("[%s] Vault mount %s is not initialized", alias, url)
+
+	if len(keys) < 1 {
+		debug.Log("[%s] No keys available", alias)
+
+		return s, NotInitializedError{alias, url}
+	}
+
+	debug.Log("[%s] Trying to initialize Vault mount at %s for %+v", alias, url, keys)
+
+	if err := s.Init(ctx, url, keys...); err != nil {
+		return s, fmt.Errorf("failed to initialize Vault mount %q at %q: %w", alias, url, err)
+	}
+
+	out.Printf(ctx, "Vault mount %s initialized for:", url)
+
+	for _, r := range s.Recipients(ctx) {
+		out.Noticef(ctx, "  %s", r)
+	}
+
+	return s, nil
 }
